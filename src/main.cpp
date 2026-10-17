@@ -1,10 +1,6 @@
+#include "MPU6500.hpp"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <stdio.h>
 
-extern "C" void app_main(void) {
-  while (1) {
-    printf("Hello from ESP32!\n");
-    vTaskDelay(pdMS_TO_TICKS(1000));
-  }
-}
+extern "C" void app_main(void) {}

@@ -18,7 +18,7 @@ private:
   void merge_bits();
 
 public:
-  MPU6500(i2c_master_bus_handle_t bus);
+  MPU6500(i2c_master_bus_handle_t &bus);
   void update();
   std::uint16_t get_ax();
   std::uint16_t get_ay();

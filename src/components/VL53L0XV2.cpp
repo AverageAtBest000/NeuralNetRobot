@@ -20,6 +20,16 @@ VL53L0XV2::VL53L0XV2(i2c_master_bus_handle_t &bus) {
   write_to_register(set_continuous, sizeof(set_continuous));
 }
 
+void VL53L0XV2::update() {
+  if (!is_ready() || !is_valid())
+    return;
+
+  std::uint8_t distance_bits[2]{};
+  read_register(DIST_RESULT, distance_bits, sizeof(distance_bits));
+
+  distance_mm = static_cast<std::uint16_t>(static_cast<std::uint16_t>(distance_bits[0] << 8) | distance_bits[1]);
+}
+
 bool VL53L0XV2::is_ready() {
   std::uint8_t interrupt_status{};
   read_register(RESULT_INTERUPT_STATUS, &interrupt_status, sizeof(interrupt_status));

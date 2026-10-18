@@ -23,4 +23,5 @@ public:
   VL53L0XV2(i2c_master_bus_handle_t &bus);
   std::uint16_t get_dist_mm();
   void read();
+  void update();
 };

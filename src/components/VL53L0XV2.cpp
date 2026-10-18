@@ -2,6 +2,7 @@
 #include "driver/i2c_master.h"
 #include "driver/i2c_types.h"
 #include "esp_err.h"
+#include "utils.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <sys/types.h>
@@ -34,6 +35,16 @@ bool VL53L0XV2::is_valid() {
   uint8_t status_code = (range_status & 0x78) >> 3;
   if (status_code == 0)
     return true;
+  else if (status_code == 2)
+    uils::raise_warning("VL53L0XV2", "singnal failiure");
+  else if (status_code == 3)
+    uils::raise_warning("VL53L0XV2", "minimum range failiure");
+  else if (status_code == 4)
+    uils::raise_warning("VL53L0XV2", "phase failiure");
+  else if (status_code == 5)
+    uils::raise_warning("VL53L0XV2", "hardware failiure");
+  else if (status_code == 11)
+    uils::raise_warning("VL53L0XV2", "no usable status");
 
   return false;
 }

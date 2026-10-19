@@ -28,6 +28,9 @@ void VL53L0XV2::update() {
   read_register(DIST_RESULT, distance_bits, sizeof(distance_bits));
 
   distance_mm = static_cast<std::uint16_t>(static_cast<std::uint16_t>(distance_bits[0] << 8) | distance_bits[1]);
+
+  std::uint8_t clear[2]{SYSTEM_INTERRUPT_CLEAR, 0x01};
+  write_to_register(clear, sizeof(clear));
 }
 
 bool VL53L0XV2::is_ready() {

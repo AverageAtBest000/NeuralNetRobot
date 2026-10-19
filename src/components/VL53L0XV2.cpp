@@ -46,18 +46,8 @@ bool VL53L0XV2::is_valid() {
   std::uint8_t range_status{};
   read_register(RESULT_RANGE_STATUS, &range_status, sizeof(range_status));
   uint8_t status_code = (range_status & 0x78) >> 3;
-  if (status_code == 0)
+  if (status_code == 11)
     return true;
-  else if (status_code == 2)
-    uils::raise_warning("VL53L0XV2", "singnal failiure");
-  else if (status_code == 3)
-    uils::raise_warning("VL53L0XV2", "minimum range failiure");
-  else if (status_code == 4)
-    uils::raise_warning("VL53L0XV2", "phase failiure");
-  else if (status_code == 5)
-    uils::raise_warning("VL53L0XV2", "hardware failiure");
-  else if (status_code == 11)
-    uils::raise_warning("VL53L0XV2", "no usable status");
 
   return false;
 }

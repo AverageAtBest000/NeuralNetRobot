@@ -28,24 +28,24 @@ void MPU6500::update() {
  * @brief Merges high and low bits for a 16 bit measurement
  */
 void MPU6500::merge_bits() {
-  a_x = static_cast<std::uint16_t>(reads[0] << 8 | reads[1]);
-  a_y = static_cast<std::uint16_t>(reads[2] << 8 | reads[3]);
-  a_z = static_cast<std::uint16_t>(reads[4] << 8 | reads[5]);
+  a_x = static_cast<std::int16_t>(reads[0] << 8 | reads[1]);
+  a_y = static_cast<std::int16_t>(reads[2] << 8 | reads[3]);
+  a_z = static_cast<std::int16_t>(reads[4] << 8 | reads[5]);
 
-  g_x = static_cast<std::uint16_t>(reads[8] << 8 | reads[9]);
-  g_y = static_cast<std::uint16_t>(reads[10] << 8 | reads[11]);
-  g_z = static_cast<std::uint16_t>(reads[12] << 8 | reads[13]);
+  g_x = static_cast<std::int16_t>(reads[8] << 8 | reads[9]);
+  g_y = static_cast<std::int16_t>(reads[10] << 8 | reads[11]);
+  g_z = static_cast<std::int16_t>(reads[12] << 8 | reads[13]);
 }
 
 /**
  * @brief Acceleration getters
  */
-std::uint16_t MPU6500::get_ax() { return a_x; }
-std::uint16_t MPU6500::get_ay() { return a_y; }
-std::uint16_t MPU6500::get_az() { return a_z; }
+std::int16_t MPU6500::get_ax() { return a_x; }
+std::int16_t MPU6500::get_ay() { return a_y; }
+std::int16_t MPU6500::get_az() { return a_z; }
 /**
  * @brief Gyroscope getters
  * */
-std::uint16_t MPU6500::get_gx() { return g_x; }
-std::uint16_t MPU6500::get_gy() { return g_y; }
-std::uint16_t MPU6500::get_gz() { return g_z; }
+std::int16_t MPU6500::get_gx() { return g_x; }
+std::int16_t MPU6500::get_gy() { return g_y; }
+std::int16_t MPU6500::get_gz() { return g_z; }

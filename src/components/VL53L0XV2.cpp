@@ -33,7 +33,7 @@ void VL53L0XV2::update() {
 bool VL53L0XV2::is_ready() {
   std::uint8_t interrupt_status{};
   read_register(RESULT_INTERUPT_STATUS, &interrupt_status, sizeof(interrupt_status));
-  if ((interrupt_status & 0x07) != 0)
+  if ((interrupt_status & 0x07) == 0)
     return false;
 
   return true;

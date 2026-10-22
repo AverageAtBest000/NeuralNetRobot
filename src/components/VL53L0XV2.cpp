@@ -21,8 +21,14 @@ VL53L0XV2::VL53L0XV2(i2c_master_bus_handle_t &bus) {
 }
 
 void VL53L0XV2::update() {
-  if (!is_ready() || !is_valid())
+  if (!is_ready())
     return;
+
+  if (!is_valid()) {
+    std::uint8_t clear[2]{SYSTEM_INTERRUPT_CLEAR, 0x01};
+    write_to_register(clear, sizeof(clear));
+    return;
+  }
 
   std::uint8_t distance_bits[2]{};
   read_register(DIST_RESULT, distance_bits, sizeof(distance_bits));

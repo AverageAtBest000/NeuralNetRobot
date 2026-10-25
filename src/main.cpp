@@ -30,6 +30,8 @@ extern "C" void app_main(void) {
     std::cout << "gx: " << imu.get_gx() << '\n';
     std::cout << "gy: " << imu.get_gy() << '\n';
     std::cout << "gz: " << imu.get_gz() << '\n';
+
+    vTaskDelay(pdMS_TO_TICKS(100));
   }
 }
 

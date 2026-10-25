@@ -5,6 +5,7 @@
 #include "freertos/task.h"
 #include "hal/i2c_types.h"
 #include "soc/clk_tree_defs.h"
+#include <iostream>
 #include <stdio.h>
 
 void set_bus_conf(i2c_master_bus_config_t &bus_conf);
@@ -18,6 +19,18 @@ extern "C" void app_main(void) {
   ESP_ERROR_CHECK(i2c_new_master_bus(&bus_conf, &bus));
 
   MPU6500 imu{bus};
+
+  while (true) {
+    imu.update();
+
+    std::cout << "ax: " << imu.get_ax() << '\n';
+    std::cout << "ay: " << imu.get_ay() << '\n';
+    std::cout << "az: " << imu.get_az() << '\n';
+
+    std::cout << "gx: " << imu.get_gx() << '\n';
+    std::cout << "gy: " << imu.get_gy() << '\n';
+    std::cout << "gz: " << imu.get_gz() << '\n';
+  }
 }
 
 void set_bus_conf(i2c_master_bus_config_t &bus_conf) {

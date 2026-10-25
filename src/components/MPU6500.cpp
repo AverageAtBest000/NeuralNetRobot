@@ -14,7 +14,7 @@ MPU6500::MPU6500(i2c_master_bus_handle_t &bus) {
   ESP_ERROR_CHECK(i2c_master_bus_add_device(bus, &imu_config, &imu));
 
   // wake MPU6500. Send signal to PWR_MGMT_1
-  const std::uint8_t wake_cmd[] = {0x6B, 0x20};
+  const std::uint8_t wake_cmd[] = {0x6B, 0x00};
 
   ESP_ERROR_CHECK(i2c_master_transmit(imu, wake_cmd, sizeof(wake_cmd), 1000));
 }

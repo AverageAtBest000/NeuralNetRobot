@@ -1,5 +1,3 @@
-
-#include "driver/gpio.h"
 #include "soc/gpio_num.h"
 
 class TB6612 {

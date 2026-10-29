@@ -16,6 +16,7 @@ private:
   float velocity;
   float target_velocity;
   float encoder_count;
+  void encoderISR();
 
 public:
   GA12N20(TB6612 driver, const gpio_num_t ENCODER1_PIN, const gpio_num_t ENCODER2_PIN);

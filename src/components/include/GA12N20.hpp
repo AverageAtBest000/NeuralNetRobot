@@ -62,6 +62,14 @@ public:
   void setVelocity(float velocity);
 
   /**
+   * @brief sets desired velocity
+   * @note only acted upon in the run() method
+   * @param velocity - desired velocity
+   *
+   * */
+  void updateTicks();
+
+  /**
    *@brief returns curent velocity in
    */
   float getVelocity() const;

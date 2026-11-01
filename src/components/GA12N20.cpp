@@ -33,10 +33,15 @@ void GA12N20::setVelocity(float velocity) {
 
 void GA12N20::startEncoder() {
   ESP_ERROR_CHECK(gpio_set_intr_type(ENCODER1_PIN, GPIO_INTR_POSEDGE));
-  ESP_ERROR_CHECK(gpio_isr_handler_add(ENCODER1_PIN, encoderISR, nullptr));
+  ESP_ERROR_CHECK(gpio_isr_handler_add(ENCODER1_PIN, &GA12N20::encoderISR, this));
 }
 
 void GA12N20::encoderISR(void *arg) {
+  GA12N20 *motor = static_cast<GA12N20 *>(arg);
+  motor->updateTicks();
+}
+
+void GA12N20::updateTicks() {
 }
 
 gpio_config_t GA12N20::getConfig() const {

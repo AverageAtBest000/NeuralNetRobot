@@ -1,9 +1,10 @@
 #include "TB6612.hpp"
 #include "driver/gpio.h"
 #include "soc/gpio_num.h"
-#define A 0
-#define FORWARD 1
-#define REVERSE 0
+inline constexpr int PINS_A = 1;
+inline constexpr int PINS_B = 0;
+inline constexpr int FORWARD = 1;
+inline constexpr int REVERSE = 0;
 
 /**
  * Wrapper class for GA12N20 motors

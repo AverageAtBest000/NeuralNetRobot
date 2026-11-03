@@ -1,11 +1,13 @@
 #include "TB6612.hpp"
 #include "driver/gpio.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/portmacro.h"
 #include "soc/gpio_num.h"
+#include <cstdint>
 inline constexpr int PINS_A = 1;
 inline constexpr int PINS_B = 0;
 inline constexpr int FORWARD = 1;
 inline constexpr int REVERSE = 0;
-
 /**
  * Wrapper class for GA12N20 motors
  */
@@ -21,9 +23,15 @@ private:
   gpio_config_t conf;
 
   // Velocity control declarations
-  float velocity;
-  float target_velocity;
-  float encoder_count;
+  float velocity = 0.0f;
+  float target_velocity = 0.0f;
+
+  int64_t encoder_count = 0;
+  portMUX_TYPE encoderMux = portMUX_INITIALIZER_UNLOCKED;
+
+  int64_t previous_count = 0;
+  int64_t previous_time_us = 0;
+  bool has_previous_sample = false;
 
   /**@brief called when rising endge is detected in encoder A
    * @note calls a system interrupt

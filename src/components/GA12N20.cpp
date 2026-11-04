@@ -6,6 +6,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/portmacro.h"
 #include "hal/gpio_types.h"
+#include "hal/ledc_types.h"
 #include "soc/gpio_num.h"
 #include <algorithm>
 #include <cmath>
@@ -96,9 +97,10 @@ void GA12N20::run() {
   const int direction = (output >= 0.0f) ? FORWARD : REVERSE;
 
   if (direction != previous_direction) {
-    ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, pwm_channel, 0));
-    ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, pwm_channel));
+    ESP_ERROR_CHECK(ledc_stop(LEDC_LOW_SPEED_MODE, pwm_channel, 0));
     setDirection(direction);
+
+    previous_direction = direction;
   }
   const uint32_t duty = static_cast<uint32_t>(std::lround(std::fabs(output) * MAX_DUTY));
   ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, pwm_channel, duty));

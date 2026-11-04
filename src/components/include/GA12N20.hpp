@@ -36,6 +36,7 @@ private:
   float velocity = 0.0f;
   float target_velocity = 0.0f;
   const float ticks_per_rotation;
+  int previous_direction = -1;
   // Gains act on rad/s error and produce signed duty in [-1, 1].
   float kp = 0.1f;
   float ki = 0.05f;

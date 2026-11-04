@@ -93,10 +93,13 @@ void GA12N20::run() {
     output = 0.0f;
   }
 
-  // Disable PWM before changing direction, then apply the requested duty.
-  ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, pwm_channel, 0));
-  ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, pwm_channel));
-  setDirection(output >= 0.0f ? FORWARD : REVERSE);
+  const int direction = (output >= 0.0f) ? FORWARD : REVERSE;
+
+  if (direction != previous_direction) {
+    ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, pwm_channel, 0));
+    ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, pwm_channel));
+    setDirection(direction);
+  }
   const uint32_t duty = static_cast<uint32_t>(std::lround(std::fabs(output) * MAX_DUTY));
   ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, pwm_channel, duty));
   ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, pwm_channel));

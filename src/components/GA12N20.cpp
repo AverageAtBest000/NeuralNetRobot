@@ -51,7 +51,6 @@ GA12N20::GA12N20(TB6612 driver, const int partition, const gpio_num_t ENCODER1_P
   };
 
   ESP_ERROR_CHECK(gpio_set_level(driver.STBY, 1));
-  startEncoder();
 }
 
 void GA12N20::run() {

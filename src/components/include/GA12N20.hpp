@@ -55,12 +55,6 @@ private:
   static void encoderISR(void *arg);
 
   /**
-   * @brief sets up system interrupt
-   * @note gpio_install_isr_service() must be called in main
-   * */
-  void startEncoder();
-
-  /**
    * @brief sets motor direction
    * @param direction - if FORWARD - AIN1 HIGH, AIN2 LOW, opposite if REVERSE
    * */
@@ -103,6 +97,12 @@ public:
    *@brief returns measured signed velocity in radians per second
    */
   float getVelocity() const;
+
+  /**
+   * @brief sets up system interrupt
+   * @note gpio_install_isr_service() must be called in main
+   * */
+  void startEncoder();
 
   /**
    *@brief returns gpio config

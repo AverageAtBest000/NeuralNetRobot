@@ -14,7 +14,7 @@
 #include <cstdint>
 
 GA12N20::GA12N20(TB6612 driver, const int partition, const gpio_num_t ENCODER1_PIN, const gpio_num_t ENCODER2_PIN, float ticks_per_rotation)
-    : IN1_PIN((partition == PINS_A) ? driver.AIN1 : driver.BIN1), IN2_PIN((partition == PINS_A) ? driver.AIN2 : driver.BIN2),
+    : STBY(driver.STBY), IN1_PIN((partition == PINS_A) ? driver.AIN1 : driver.BIN1), IN2_PIN((partition == PINS_A) ? driver.AIN2 : driver.BIN2),
       PWM_PIN((partition == PINS_A) ? driver.PWMA : driver.PWMB), ENCODER1_PIN(ENCODER1_PIN), ENCODER2_PIN(ENCODER2_PIN),
       pwm_channel((partition == PINS_A) ? LEDC_CHANNEL_0 : LEDC_CHANNEL_1), ticks_per_rotation(ticks_per_rotation) {
 
@@ -34,15 +34,6 @@ GA12N20::GA12N20(TB6612 driver, const int partition, const gpio_num_t ENCODER1_P
       .intr_type = GPIO_INTR_DISABLE,
   };
 
-  timer = {
-      .speed_mode = LEDC_LOW_SPEED_MODE,
-      .duty_resolution = LEDC_TIMER_10_BIT,
-      .timer_num = LEDC_TIMER_0,
-      .freq_hz = 20000,
-      .clk_cfg = LEDC_AUTO_CLK,
-      .deconfigure = false,
-  };
-
   channel = {
       .gpio_num = PWM_PIN,
       .speed_mode = LEDC_LOW_SPEED_MODE,
@@ -50,8 +41,6 @@ GA12N20::GA12N20(TB6612 driver, const int partition, const gpio_num_t ENCODER1_P
       .timer_sel = LEDC_TIMER_0,
       .duty = 0,
   };
-
-  ESP_ERROR_CHECK(gpio_set_level(driver.STBY, 1));
 }
 
 void GA12N20::run() {
@@ -158,8 +147,15 @@ gpio_config_t GA12N20::getOutConfig() const {
   return output_conf;
 }
 
-ledc_timer_config_t GA12N20::getLedcTimerConfig() const {
-  return timer;
+ledc_timer_config_t GA12N20::getLedcTimerConfig() {
+  return ledc_timer_config_t{
+      .speed_mode = LEDC_LOW_SPEED_MODE,
+      .duty_resolution = LEDC_TIMER_10_BIT,
+      .timer_num = LEDC_TIMER_0,
+      .freq_hz = 20000,
+      .clk_cfg = LEDC_AUTO_CLK,
+      .deconfigure = false,
+  };
 }
 
 ledc_channel_config_t GA12N20::getLedcChannelConfig() const {

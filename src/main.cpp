@@ -1,4 +1,7 @@
+#include "GA12N20.hpp"
 #include "MPU6500.hpp"
+#include "TB6612.hpp"
+#include "VL53L0XV2.hpp"
 #include "driver/gpio.h"
 #include "driver/i2c_master.h"
 #include "driver/i2c_types.h"
@@ -6,11 +9,22 @@
 #include "freertos/task.h"
 #include "hal/i2c_types.h"
 #include "soc/clk_tree_defs.h"
+#include "soc/gpio_num.h"
 #include <iostream>
 
 void set_bus_conf(i2c_master_bus_config_t &bus_conf);
 
 extern "C" void app_main(void) {
+  constexpr gpio_num_t AIN1 = GPIO_NUM_0;
+  constexpr gpio_num_t AIN2 = GPIO_NUM_0;
+  constexpr gpio_num_t PWMA = GPIO_NUM_0;
+  constexpr gpio_num_t BIN1 = GPIO_NUM_0;
+  constexpr gpio_num_t BIN2 = GPIO_NUM_0;
+  constexpr gpio_num_t PWMB = GPIO_NUM_0;
+  constexpr gpio_num_t STBY = GPIO_NUM_0;
+  constexpr gpio_num_t RIGHT_MOTOR_ENCODER1_PIN = GPIO_NUM_21;
+  constexpr gpio_num_t RIGHT_MOTOR_ENCODER2_PIN = GPIO_NUM_21;
+  constexpr float motor_ticks_per_rotation = 0.0f;
 
   ESP_ERROR_CHECK(gpio_install_isr_service(0));
 
@@ -20,20 +34,38 @@ extern "C" void app_main(void) {
   i2c_master_bus_handle_t bus{};
   ESP_ERROR_CHECK(i2c_new_master_bus(&bus_conf, &bus));
 
+  constexpr TB6612 driver{AIN1, AIN2, PWMA, BIN1, BIN2, PWMB, STBY};
+
   MPU6500 imu{bus};
 
+  // Set the motors' STBY LOW before initialization
+  gpio_set_direction(driver.STBY, GPIO_MODE_OUTPUT);
+  ESP_ERROR_CHECK(gpio_set_level(driver.STBY, 0));
+
+  GA12N20 rightMotor(driver, PINS_A, RIGHT_MOTOR_ENCODER1_PIN, RIGHT_MOTOR_ENCODER2_PIN, motor_ticks_per_rotation);
+  GA12N20 leftMotor(driver, PINS_B, RIGHT_MOTOR_ENCODER1_PIN, RIGHT_MOTOR_ENCODER2_PIN, motor_ticks_per_rotation);
+
+  auto right_input_conf = rightMotor.getInConfig();
+  auto left_input_conf = leftMotor.getInConfig();
+  ESP_ERROR_CHECK(gpio_config(&right_input_conf));
+  ESP_ERROR_CHECK(gpio_config(&left_input_conf));
+
+  auto right_output_conf = rightMotor.getOutConfig();
+  auto left_output_conf = leftMotor.getOutConfig();
+  ESP_ERROR_CHECK(gpio_config(&right_output_conf));
+  ESP_ERROR_CHECK(gpio_config(&left_output_conf));
+
+  auto timer_conf = GA12N20::getLedcTimerConfig();
+  ESP_ERROR_CHECK(ledc_timer_config(&timer_conf));
+
+  auto right_channel_conf = rightMotor.getLedcChannelConfig();
+  auto left_channel_conf = leftMotor.getLedcChannelConfig();
+  ESP_ERROR_CHECK(ledc_channel_config(&right_channel_conf));
+  ESP_ERROR_CHECK(ledc_channel_config(&left_channel_conf));
+
+  rightMotor.startEncoder();
+  leftMotor.startEncoder();
   while (true) {
-    imu.update();
-
-    std::cout << "ax: " << imu.get_ax() << '\n';
-    std::cout << "ay: " << imu.get_ay() << '\n';
-    std::cout << "az: " << imu.get_az() << '\n';
-
-    std::cout << "gx: " << imu.get_gx() << '\n';
-    std::cout << "gy: " << imu.get_gy() << '\n';
-    std::cout << "gz: " << imu.get_gz() << '\n';
-
-    vTaskDelay(pdMS_TO_TICKS(100));
   }
 }
 

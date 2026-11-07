@@ -92,12 +92,6 @@ public:
   void run();
 
   /**
-   * @brief Unimplemented initialization entry point.
-   * @note Currently declared without a definition; calling it causes a linker error.
-   */
-  void init();
-
-  /**
    * @brief Sets PID gains and clears the accumulated integral output.
    * @param proportional - Proportional gain; must be nonnegative and finite.
    * @param integral - Integral gain; must be nonnegative and finite.

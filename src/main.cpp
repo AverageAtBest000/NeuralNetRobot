@@ -11,6 +11,7 @@
 #include "soc/clk_tree_defs.h"
 #include "soc/gpio_num.h"
 #include <iostream>
+#include <sys/reent.h>
 
 void set_bus_conf(i2c_master_bus_config_t &bus_conf);
 
@@ -41,6 +42,11 @@ extern "C" void app_main(void) {
   constexpr TB6612 driver{AIN1, AIN2, PWMA, BIN1, BIN2, PWMB, STBY};
 
   MPU6500 imu{bus};
+  imu.calibrate_gyro();
+
+  VL53L0XV2 front_distance_sensor{bus};
+  VL53L0XV2 right_distance_sensor{bus};
+  VL53L0XV2 left_distance_sensor{bus};
 
   // Set the motors' STBY LOW before initialization
   gpio_set_direction(driver.STBY, GPIO_MODE_OUTPUT);
@@ -69,6 +75,7 @@ extern "C" void app_main(void) {
 
   rightMotor.startEncoder();
   leftMotor.startEncoder();
+
   while (true) {
   }
 }

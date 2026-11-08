@@ -1,19 +1,25 @@
-// Startup sequence adapted from Pololu's VL53L0X library and ST's API.
-// See VL53L0X-LICENSE.txt for the upstream copyright and license notices.
 #include "VL53L0XV2.hpp"
+#include "GA12N20.hpp"
+#include "driver/gpio.h"
 #include "esp_err.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "soc/gpio_num.h"
+#include <cstdint>
 
-VL53L0XV2::VL53L0XV2(i2c_master_bus_handle_t &bus) {
+VL53L0XV2::VL53L0XV2(i2c_master_bus_handle_t &bus, const gpio_num_t XSHUT_PIN) : XSHUT_PIN(XSHUT_PIN), bus(bus) {
   i2c_device_config_t dist_config{};
   dist_config.dev_addr_length = I2C_ADDR_BIT_LEN_7;
   dist_config.device_address = ADDRS;
   dist_config.scl_speed_hz = 100000;
 
   ESP_ERROR_CHECK(i2c_master_bus_add_device(bus, &dist_config, &distance_sensor));
-  init();
+
+  conf = {
+      .pin_bit_mask = 1ULL << XSHUT_PIN,
+      .mode = GPIO_MODE_OUTPUT,
+  };
 }
 
 void VL53L0XV2::init() {
@@ -234,9 +240,34 @@ std::uint16_t VL53L0XV2::get_dist_mm() {
   return is_valid() ? distance_mm : UINT16_MAX;
 }
 
+void VL53L0XV2::set_addr(std::uint8_t NEW_ADDR) {
+  // Communicate on 0x29 before adress mod.
+  write_register(ADDRS_REGISTER, NEW_ADDR);
+
+  // remake device handle with new adress.
+  i2c_device_config_t dist_config{};
+  dist_config.dev_addr_length = I2C_ADDR_BIT_LEN_7;
+  dist_config.device_address = NEW_ADDR;
+  dist_config.scl_speed_hz = 100000;
+
+  // remove old handle to prevent leak
+  ESP_ERROR_CHECK(i2c_master_bus_rm_device(distance_sensor));
+  distance_sensor = nullptr;
+
+  ESP_ERROR_CHECK(i2c_master_bus_add_device(bus, &dist_config, &distance_sensor));
+}
+
 void VL53L0XV2::write_register(std::uint8_t addr, std::uint8_t value) {
   const std::uint8_t cmd[]{addr, value};
   ESP_ERROR_CHECK(i2c_master_transmit(distance_sensor, cmd, sizeof(cmd), I2C_TIMEOUT_MS));
+}
+
+void VL53L0XV2::driveXSHUT(uint32_t state) {
+  ESP_ERROR_CHECK(gpio_set_level(XSHUT_PIN, state));
+}
+
+gpio_config_t VL53L0XV2::getConfig() {
+  return conf;
 }
 
 std::uint8_t VL53L0XV2::read_register(std::uint8_t addr) {

@@ -9,28 +9,40 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "hal/i2c_types.h"
+#include "hal/ledc_types.h"
 #include "soc/clk_tree_defs.h"
 #include "soc/gpio_num.h"
+#include <cstdint>
 #include <iostream>
 #include <sys/reent.h>
 
 void set_bus_conf(i2c_master_bus_config_t &bus_conf);
+void set_VLX_adress(VL53L0XV2 &front, VL53L0XV2 &right, VL53L0XV2 &left);
+
+constexpr std::uint16_t FRONT_SENSOR_ADDRESS = 0x30;
+constexpr std::uint16_t RIGHT_SENSOR_ADDRESS = 0x31;
+constexpr std::uint16_t LEFT_SENSOR_ADDRESS = 0x32;
+
+constexpr gpio_num_t AIN1 = GPIO_NUM_19;
+constexpr gpio_num_t AIN2 = GPIO_NUM_18;
+constexpr gpio_num_t PWMA = GPIO_NUM_5;
+constexpr gpio_num_t LEFT_MOTOR_ENCODER1_PIN = GPIO_NUM_17;
+constexpr gpio_num_t LEFT_MOTOR_ENCODER2_PIN = GPIO_NUM_16;
+
+constexpr gpio_num_t BIN1 = GPIO_NUM_32;
+constexpr gpio_num_t BIN2 = GPIO_NUM_33;
+constexpr gpio_num_t PWMB = GPIO_NUM_25;
+constexpr gpio_num_t RIGHT_MOTOR_ENCODER1_PIN = GPIO_NUM_26;
+constexpr gpio_num_t RIGHT_MOTOR_ENCODER2_PIN = GPIO_NUM_27;
+
+constexpr gpio_num_t STBY = GPIO_NUM_23;
+constexpr float motor_ticks_per_rotation = 0.0f;
+
+constexpr gpio_num_t FRONT_DIST_XSHUT = GPIO_NUM_2;
+constexpr gpio_num_t RIGHT_DIST_XSHUT = GPIO_NUM_0;
+constexpr gpio_num_t LEFT_DIST_XSHUT = GPIO_NUM_15;
 
 extern "C" void app_main(void) {
-  constexpr gpio_num_t AIN1 = GPIO_NUM_19;
-  constexpr gpio_num_t AIN2 = GPIO_NUM_18;
-  constexpr gpio_num_t PWMA = GPIO_NUM_5;
-  constexpr gpio_num_t LEFT_MOTOR_ENCODER1_PIN = GPIO_NUM_17;
-  constexpr gpio_num_t LEFT_MOTOR_ENCODER2_PIN = GPIO_NUM_16;
-
-  constexpr gpio_num_t BIN1 = GPIO_NUM_32;
-  constexpr gpio_num_t BIN2 = GPIO_NUM_33;
-  constexpr gpio_num_t PWMB = GPIO_NUM_25;
-  constexpr gpio_num_t RIGHT_MOTOR_ENCODER1_PIN = GPIO_NUM_26;
-  constexpr gpio_num_t RIGHT_MOTOR_ENCODER2_PIN = GPIO_NUM_27;
-
-  constexpr gpio_num_t STBY = GPIO_NUM_23;
-  constexpr float motor_ticks_per_rotation = 0.0f;
 
   ESP_ERROR_CHECK(gpio_install_isr_service(0));
 
@@ -45,9 +57,22 @@ extern "C" void app_main(void) {
   MPU6500 imu{bus};
   ESP_ERROR_CHECK(imu.calibrate_gyro() ? ESP_OK : ESP_ERR_INVALID_RESPONSE);
 
-  VL53L0XV2 front_distance_sensor{bus};
-  VL53L0XV2 right_distance_sensor{bus};
-  VL53L0XV2 left_distance_sensor{bus};
+  VL53L0XV2 front_distance_sensor{bus, FRONT_DIST_XSHUT};
+  VL53L0XV2 right_distance_sensor{bus, RIGHT_DIST_XSHUT};
+  VL53L0XV2 left_distance_sensor{bus, LEFT_DIST_XSHUT};
+
+  auto front_conf = front_distance_sensor.getConfig();
+  auto right_conf = right_distance_sensor.getConfig();
+  auto left_conf = left_distance_sensor.getConfig();
+  ESP_ERROR_CHECK(gpio_config(&front_conf));
+  ESP_ERROR_CHECK(gpio_config(&right_conf));
+  ESP_ERROR_CHECK(gpio_config(&left_conf));
+
+  set_VLX_adress(front_distance_sensor, right_distance_sensor, left_distance_sensor);
+
+  front_distance_sensor.init();
+  right_distance_sensor.init();
+  left_distance_sensor.init();
 
   // Set the motors' STBY LOW before initialization
   gpio_set_direction(driver.STBY, GPIO_MODE_OUTPUT);
@@ -79,6 +104,25 @@ extern "C" void app_main(void) {
 
   while (true) {
   }
+}
+
+void set_VLX_adress(VL53L0XV2 &front, VL53L0XV2 &right, VL53L0XV2 &left) {
+
+  front.driveXSHUT(0);
+  right.driveXSHUT(0);
+  left.driveXSHUT(0);
+
+  front.driveXSHUT(1);
+  vTaskDelay(pdMS_TO_TICKS(20));
+  front.set_addr(FRONT_SENSOR_ADDRESS);
+
+  right.driveXSHUT(1);
+  vTaskDelay(pdMS_TO_TICKS(20));
+  right.set_addr(RIGHT_SENSOR_ADDRESS);
+
+  left.driveXSHUT(1);
+  vTaskDelay(pdMS_TO_TICKS(20));
+  left.set_addr(LEFT_SENSOR_ADDRESS);
 }
 
 void set_bus_conf(i2c_master_bus_config_t &bus_conf) {

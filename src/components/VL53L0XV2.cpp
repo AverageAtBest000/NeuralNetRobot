@@ -226,10 +226,6 @@ bool VL53L0XV2::update() {
   return true;
 }
 
-bool VL53L0XV2::read() {
-  return update();
-}
-
 bool VL53L0XV2::is_valid(std::uint32_t max_age_ms) const {
   return valid && esp_timer_get_time() - sample_time_us <= static_cast<std::int64_t>(max_age_ms) * 1000;
 }

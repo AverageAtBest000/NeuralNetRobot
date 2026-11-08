@@ -15,15 +15,19 @@
 void set_bus_conf(i2c_master_bus_config_t &bus_conf);
 
 extern "C" void app_main(void) {
-  constexpr gpio_num_t AIN1 = GPIO_NUM_0;
-  constexpr gpio_num_t AIN2 = GPIO_NUM_0;
-  constexpr gpio_num_t PWMA = GPIO_NUM_0;
-  constexpr gpio_num_t BIN1 = GPIO_NUM_0;
-  constexpr gpio_num_t BIN2 = GPIO_NUM_0;
-  constexpr gpio_num_t PWMB = GPIO_NUM_0;
-  constexpr gpio_num_t STBY = GPIO_NUM_0;
-  constexpr gpio_num_t RIGHT_MOTOR_ENCODER1_PIN = GPIO_NUM_21;
-  constexpr gpio_num_t RIGHT_MOTOR_ENCODER2_PIN = GPIO_NUM_21;
+  constexpr gpio_num_t AIN1 = GPIO_NUM_19;
+  constexpr gpio_num_t AIN2 = GPIO_NUM_18;
+  constexpr gpio_num_t PWMA = GPIO_NUM_5;
+  constexpr gpio_num_t LEFT_MOTOR_ENCODER1_PIN = GPIO_NUM_17;
+  constexpr gpio_num_t LEFT_MOTOR_ENCODER2_PIN = GPIO_NUM_26;
+
+  constexpr gpio_num_t BIN1 = GPIO_NUM_32;
+  constexpr gpio_num_t BIN2 = GPIO_NUM_33;
+  constexpr gpio_num_t PWMB = GPIO_NUM_25;
+  constexpr gpio_num_t RIGHT_MOTOR_ENCODER1_PIN = GPIO_NUM_26;
+  constexpr gpio_num_t RIGHT_MOTOR_ENCODER2_PIN = GPIO_NUM_27;
+
+  constexpr gpio_num_t STBY = GPIO_NUM_23;
   constexpr float motor_ticks_per_rotation = 0.0f;
 
   ESP_ERROR_CHECK(gpio_install_isr_service(0));
@@ -43,7 +47,7 @@ extern "C" void app_main(void) {
   ESP_ERROR_CHECK(gpio_set_level(driver.STBY, 0));
 
   GA12N20 rightMotor(driver, PINS_A, RIGHT_MOTOR_ENCODER1_PIN, RIGHT_MOTOR_ENCODER2_PIN, motor_ticks_per_rotation);
-  GA12N20 leftMotor(driver, PINS_B, RIGHT_MOTOR_ENCODER1_PIN, RIGHT_MOTOR_ENCODER2_PIN, motor_ticks_per_rotation);
+  GA12N20 leftMotor(driver, PINS_B, LEFT_MOTOR_ENCODER1_PIN, LEFT_MOTOR_ENCODER2_PIN, motor_ticks_per_rotation);
 
   auto right_input_conf = rightMotor.getInConfig();
   auto left_input_conf = leftMotor.getInConfig();

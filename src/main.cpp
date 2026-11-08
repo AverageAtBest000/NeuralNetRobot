@@ -5,6 +5,7 @@
 #include "driver/gpio.h"
 #include "driver/i2c_master.h"
 #include "driver/i2c_types.h"
+#include "esp_err.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "hal/i2c_types.h"
@@ -20,7 +21,7 @@ extern "C" void app_main(void) {
   constexpr gpio_num_t AIN2 = GPIO_NUM_18;
   constexpr gpio_num_t PWMA = GPIO_NUM_5;
   constexpr gpio_num_t LEFT_MOTOR_ENCODER1_PIN = GPIO_NUM_17;
-  constexpr gpio_num_t LEFT_MOTOR_ENCODER2_PIN = GPIO_NUM_26;
+  constexpr gpio_num_t LEFT_MOTOR_ENCODER2_PIN = GPIO_NUM_16;
 
   constexpr gpio_num_t BIN1 = GPIO_NUM_32;
   constexpr gpio_num_t BIN2 = GPIO_NUM_33;
@@ -42,7 +43,7 @@ extern "C" void app_main(void) {
   constexpr TB6612 driver{AIN1, AIN2, PWMA, BIN1, BIN2, PWMB, STBY};
 
   MPU6500 imu{bus};
-  imu.calibrate_gyro();
+  ESP_ERROR_CHECK(imu.calibrate_gyro() ? ESP_OK : ESP_ERR_INVALID_RESPONSE);
 
   VL53L0XV2 front_distance_sensor{bus};
   VL53L0XV2 right_distance_sensor{bus};

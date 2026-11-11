@@ -32,7 +32,7 @@ constexpr std::uint16_t RIGHT_SENSOR_ADDRESS = 0x31;
 constexpr std::uint16_t LEFT_SENSOR_ADDRESS = 0x32;
 
 constexpr gpio_num_t AIN1 = GPIO_NUM_19;
-constexpr gpio_num_t AINrightMotor2 = GPIO_NUM_18;
+constexpr gpio_num_t AIN2 = GPIO_NUM_18;
 constexpr gpio_num_t PWMA = GPIO_NUM_5;
 constexpr gpio_num_t RIGHT_MOTOR_ENCODER1_PIN = GPIO_NUM_17;
 constexpr gpio_num_t RIGHT_MOTOR_ENCODER2_PIN = GPIO_NUM_16;

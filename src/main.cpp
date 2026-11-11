@@ -12,9 +12,17 @@
 #include "hal/ledc_types.h"
 #include "soc/clk_tree_defs.h"
 #include "soc/gpio_num.h"
+#include "tests/include/EncoderTickCounter.hpp"
 #include <cstdint>
 #include <iostream>
 #include <sys/reent.h>
+
+enum class Mode {
+  ENCODER_TEST,
+  RUN
+};
+
+constexpr Mode MODE = Mode::ENCODER_TEST;
 
 void set_bus_conf(i2c_master_bus_config_t &bus_conf);
 void set_VLX_adress(VL53L0XV2 &front, VL53L0XV2 &right, VL53L0XV2 &left);
@@ -102,7 +110,12 @@ extern "C" void app_main(void) {
   rightMotor.startEncoder();
   leftMotor.startEncoder();
 
-  while (true) {
+  switch (MODE) {
+  case Mode::ENCODER_TEST:
+    CountEncoderTicks(rightMotor);
+    break;
+  case Mode::RUN:
+    break;
   }
 }
 

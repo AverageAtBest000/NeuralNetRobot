@@ -32,16 +32,16 @@ constexpr std::uint16_t RIGHT_SENSOR_ADDRESS = 0x31;
 constexpr std::uint16_t LEFT_SENSOR_ADDRESS = 0x32;
 
 constexpr gpio_num_t AIN1 = GPIO_NUM_19;
-constexpr gpio_num_t AIN2 = GPIO_NUM_18;
+constexpr gpio_num_t AINrightMotor2 = GPIO_NUM_18;
 constexpr gpio_num_t PWMA = GPIO_NUM_5;
-constexpr gpio_num_t LEFT_MOTOR_ENCODER1_PIN = GPIO_NUM_17;
-constexpr gpio_num_t LEFT_MOTOR_ENCODER2_PIN = GPIO_NUM_16;
+constexpr gpio_num_t RIGHT_MOTOR_ENCODER1_PIN = GPIO_NUM_17;
+constexpr gpio_num_t RIGHT_MOTOR_ENCODER2_PIN = GPIO_NUM_16;
 
 constexpr gpio_num_t BIN1 = GPIO_NUM_32;
 constexpr gpio_num_t BIN2 = GPIO_NUM_33;
 constexpr gpio_num_t PWMB = GPIO_NUM_25;
-constexpr gpio_num_t RIGHT_MOTOR_ENCODER1_PIN = GPIO_NUM_26;
-constexpr gpio_num_t RIGHT_MOTOR_ENCODER2_PIN = GPIO_NUM_27;
+constexpr gpio_num_t LEFT_MOTOR_ENCODER1_PIN = GPIO_NUM_26;
+constexpr gpio_num_t LEFT_MOTOR_ENCODER2_PIN = GPIO_NUM_27;
 
 constexpr gpio_num_t STBY = GPIO_NUM_23;
 constexpr float motor_ticks_per_rotation = 0.0f;
@@ -112,7 +112,8 @@ extern "C" void app_main(void) {
 
   switch (MODE) {
   case Mode::ENCODER_TEST:
-    CountEncoderTicks(rightMotor);
+    ESP_ERROR_CHECK(gpio_set_level(driver.STBY, 0));
+    CountEncoderTicks(leftMotor);
     break;
   case Mode::RUN:
     break;

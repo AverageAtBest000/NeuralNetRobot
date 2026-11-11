@@ -147,6 +147,13 @@ gpio_config_t GA12N20::getOutConfig() const {
   return output_conf;
 }
 
+int64_t GA12N20::getEncoderTicks() {
+  return encoder_count;
+}
+
+void GA12N20::resetEncoder() {
+  encoder_count = 0;
+}
 ledc_timer_config_t GA12N20::getLedcTimerConfig() {
   return ledc_timer_config_t{
       .speed_mode = LEDC_LOW_SPEED_MODE,

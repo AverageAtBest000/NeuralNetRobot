@@ -7,6 +7,7 @@
 #include "freertos/portmacro.h"
 #include "soc/gpio_num.h"
 #include <cstdint>
+#include <sys/_intsup.h>
 inline constexpr int PINS_A = 1;
 inline constexpr int PINS_B = 0;
 inline constexpr int FORWARD = 1;
@@ -133,6 +134,16 @@ public:
    * is registered. The class does not automatically unregister the handler.
    */
   void startEncoder();
+
+  /**
+   * @brief Returns the latest measured encoder tick count
+   */
+  int64_t getEncoderTicks();
+
+  /**
+   * @brief Resets encoder tick count to zero
+   */
+  void resetEncoder();
 
   /**
    * @brief Returns the GPIO configuration for both encoder inputs.

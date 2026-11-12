@@ -50,17 +50,43 @@ constexpr gpio_num_t FRONT_DIST_XSHUT = GPIO_NUM_2;
 constexpr gpio_num_t RIGHT_DIST_XSHUT = GPIO_NUM_0;
 constexpr gpio_num_t LEFT_DIST_XSHUT = GPIO_NUM_15;
 
+void init_run_mode();
+void init_encoder_test_mode();
+
 extern "C" void app_main(void) {
 
+  // Disable the motor driver before initializing any other hardware.
+  ESP_ERROR_CHECK(gpio_set_level(STBY, 0));
+  ESP_ERROR_CHECK(gpio_set_direction(STBY, GPIO_MODE_OUTPUT));
+
   ESP_ERROR_CHECK(gpio_install_isr_service(0));
+
+  constexpr TB6612 driver{AIN1, AIN2, PWMA, BIN1, BIN2, PWMB, STBY};
+
+  switch (MODE) {
+  case Mode::ENCODER_TEST: {
+    GA12N20 leftMotor(driver, PINS_B, LEFT_MOTOR_ENCODER1_PIN, LEFT_MOTOR_ENCODER2_PIN, motor_ticks_per_rotation);
+    auto left_input_conf = leftMotor.getInConfig();
+    ESP_ERROR_CHECK(gpio_config(&left_input_conf));
+    leftMotor.startEncoder();
+
+    // CountEncoderTicks configures GPIO0 as the BOOT input with a pull-up.
+    CountEncoderTicks(leftMotor);
+
+    // Keep leftMotor alive while its encoder interrupt handler is registered.
+    while (true) {
+      vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+  }
+  case Mode::RUN:
+    break;
+  }
 
   i2c_master_bus_config_t bus_conf{};
   set_bus_conf(bus_conf);
 
   i2c_master_bus_handle_t bus{};
   ESP_ERROR_CHECK(i2c_new_master_bus(&bus_conf, &bus));
-
-  constexpr TB6612 driver{AIN1, AIN2, PWMA, BIN1, BIN2, PWMB, STBY};
 
   MPU6500 imu{bus};
   ESP_ERROR_CHECK(imu.calibrate_gyro() ? ESP_OK : ESP_ERR_INVALID_RESPONSE);
@@ -81,10 +107,6 @@ extern "C" void app_main(void) {
   front_distance_sensor.init();
   right_distance_sensor.init();
   left_distance_sensor.init();
-
-  // Set the motors' STBY LOW before initialization
-  gpio_set_direction(driver.STBY, GPIO_MODE_OUTPUT);
-  ESP_ERROR_CHECK(gpio_set_level(driver.STBY, 0));
 
   GA12N20 rightMotor(driver, PINS_A, RIGHT_MOTOR_ENCODER1_PIN, RIGHT_MOTOR_ENCODER2_PIN, motor_ticks_per_rotation);
   GA12N20 leftMotor(driver, PINS_B, LEFT_MOTOR_ENCODER1_PIN, LEFT_MOTOR_ENCODER2_PIN, motor_ticks_per_rotation);
@@ -110,13 +132,9 @@ extern "C" void app_main(void) {
   rightMotor.startEncoder();
   leftMotor.startEncoder();
 
-  switch (MODE) {
-  case Mode::ENCODER_TEST:
-    ESP_ERROR_CHECK(gpio_set_level(driver.STBY, 0));
-    CountEncoderTicks(leftMotor);
-    break;
-  case Mode::RUN:
-    break;
+  // Keep both motor objects alive while their interrupt handlers are registered.
+  while (true) {
+    vTaskDelay(pdMS_TO_TICKS(1000));
   }
 }
 
@@ -146,4 +164,10 @@ void set_bus_conf(i2c_master_bus_config_t &bus_conf) {
   bus_conf.clk_source = I2C_CLK_SRC_DEFAULT;
   bus_conf.glitch_ignore_cnt = 7;
   bus_conf.flags.enable_internal_pullup = true;
+}
+
+void init_run_mode() {
+}
+
+void init_encoder_test_mode() {
 }

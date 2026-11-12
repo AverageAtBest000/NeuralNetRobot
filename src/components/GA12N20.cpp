@@ -148,11 +148,16 @@ gpio_config_t GA12N20::getOutConfig() const {
 }
 
 int64_t GA12N20::getEncoderTicks() {
-  return encoder_count;
+  portENTER_CRITICAL(&encoderMux);
+  int64_t current_count = encoder_count;
+  portEXIT_CRITICAL(&encoderMux);
+  return current_count;
 }
 
 void GA12N20::resetEncoder() {
+  portENTER_CRITICAL(&encoderMux);
   encoder_count = 0;
+  portEXIT_CRITICAL(&encoderMux);
 }
 ledc_timer_config_t GA12N20::getLedcTimerConfig() {
   return ledc_timer_config_t{

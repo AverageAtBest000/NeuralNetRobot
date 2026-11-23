@@ -14,7 +14,6 @@
 #include "soc/gpio_num.h"
 #include "tests/include/EncoderTickCounter.hpp"
 #include <cstdint>
-#include <iostream>
 #include <sys/reent.h>
 
 enum class Mode {
@@ -26,6 +25,10 @@ constexpr Mode MODE = Mode::ENCODER_TEST;
 
 void set_bus_conf(i2c_master_bus_config_t &bus_conf);
 void set_VLX_adress(VL53L0XV2 &front, VL53L0XV2 &right, VL53L0XV2 &left);
+void init_encoder_test_mode(GA12N20 &motor);
+void init_run_mode(MPU6500 &imu, VL53L0XV2 &front, VL53L0XV2 &right, VL53L0XV2 &left, GA12N20 &right_motor, GA12N20 &left_motor);
+[[noreturn]] void run_encoder_test_mode(const TB6612 &driver);
+[[noreturn]] void run_run_mode(const TB6612 &driver);
 
 constexpr std::uint16_t FRONT_SENSOR_ADDRESS = 0x30;
 constexpr std::uint16_t RIGHT_SENSOR_ADDRESS = 0x31;
@@ -50,91 +53,20 @@ constexpr gpio_num_t FRONT_DIST_XSHUT = GPIO_NUM_2;
 constexpr gpio_num_t RIGHT_DIST_XSHUT = GPIO_NUM_0;
 constexpr gpio_num_t LEFT_DIST_XSHUT = GPIO_NUM_15;
 
-void init_run_mode();
-void init_encoder_test_mode();
-
 extern "C" void app_main(void) {
 
   // Disable the motor driver before initializing any other hardware.
   ESP_ERROR_CHECK(gpio_set_level(STBY, 0));
   ESP_ERROR_CHECK(gpio_set_direction(STBY, GPIO_MODE_OUTPUT));
-
   ESP_ERROR_CHECK(gpio_install_isr_service(0));
 
   constexpr TB6612 driver{AIN1, AIN2, PWMA, BIN1, BIN2, PWMB, STBY};
 
   switch (MODE) {
-  case Mode::ENCODER_TEST: {
-    GA12N20 leftMotor(driver, PINS_B, LEFT_MOTOR_ENCODER1_PIN, LEFT_MOTOR_ENCODER2_PIN, motor_ticks_per_rotation);
-    auto left_input_conf = leftMotor.getInConfig();
-    ESP_ERROR_CHECK(gpio_config(&left_input_conf));
-    leftMotor.startEncoder();
-
-    // CountEncoderTicks configures GPIO0 as the BOOT input with a pull-up.
-    CountEncoderTicks(leftMotor);
-
-    // Keep leftMotor alive while its encoder interrupt handler is registered.
-    while (true) {
-      vTaskDelay(pdMS_TO_TICKS(1000));
-    }
-  }
+  case Mode::ENCODER_TEST:
+    run_encoder_test_mode(driver);
   case Mode::RUN:
-    break;
-  }
-
-  i2c_master_bus_config_t bus_conf{};
-  set_bus_conf(bus_conf);
-
-  i2c_master_bus_handle_t bus{};
-  ESP_ERROR_CHECK(i2c_new_master_bus(&bus_conf, &bus));
-
-  MPU6500 imu{bus};
-  ESP_ERROR_CHECK(imu.calibrate_gyro() ? ESP_OK : ESP_ERR_INVALID_RESPONSE);
-
-  VL53L0XV2 front_distance_sensor{bus, FRONT_DIST_XSHUT};
-  VL53L0XV2 right_distance_sensor{bus, RIGHT_DIST_XSHUT};
-  VL53L0XV2 left_distance_sensor{bus, LEFT_DIST_XSHUT};
-
-  auto front_conf = front_distance_sensor.getConfig();
-  auto right_conf = right_distance_sensor.getConfig();
-  auto left_conf = left_distance_sensor.getConfig();
-  ESP_ERROR_CHECK(gpio_config(&front_conf));
-  ESP_ERROR_CHECK(gpio_config(&right_conf));
-  ESP_ERROR_CHECK(gpio_config(&left_conf));
-
-  set_VLX_adress(front_distance_sensor, right_distance_sensor, left_distance_sensor);
-
-  front_distance_sensor.init();
-  right_distance_sensor.init();
-  left_distance_sensor.init();
-
-  GA12N20 rightMotor(driver, PINS_A, RIGHT_MOTOR_ENCODER1_PIN, RIGHT_MOTOR_ENCODER2_PIN, motor_ticks_per_rotation);
-  GA12N20 leftMotor(driver, PINS_B, LEFT_MOTOR_ENCODER1_PIN, LEFT_MOTOR_ENCODER2_PIN, motor_ticks_per_rotation);
-
-  auto right_input_conf = rightMotor.getInConfig();
-  auto left_input_conf = leftMotor.getInConfig();
-  ESP_ERROR_CHECK(gpio_config(&right_input_conf));
-  ESP_ERROR_CHECK(gpio_config(&left_input_conf));
-
-  auto right_output_conf = rightMotor.getOutConfig();
-  auto left_output_conf = leftMotor.getOutConfig();
-  ESP_ERROR_CHECK(gpio_config(&right_output_conf));
-  ESP_ERROR_CHECK(gpio_config(&left_output_conf));
-
-  auto timer_conf = GA12N20::getLedcTimerConfig();
-  ESP_ERROR_CHECK(ledc_timer_config(&timer_conf));
-
-  auto right_channel_conf = rightMotor.getLedcChannelConfig();
-  auto left_channel_conf = leftMotor.getLedcChannelConfig();
-  ESP_ERROR_CHECK(ledc_channel_config(&right_channel_conf));
-  ESP_ERROR_CHECK(ledc_channel_config(&left_channel_conf));
-
-  rightMotor.startEncoder();
-  leftMotor.startEncoder();
-
-  // Keep both motor objects alive while their interrupt handlers are registered.
-  while (true) {
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    run_run_mode(driver);
   }
 }
 
@@ -166,8 +98,86 @@ void set_bus_conf(i2c_master_bus_config_t &bus_conf) {
   bus_conf.flags.enable_internal_pullup = true;
 }
 
-void init_run_mode() {
+[[noreturn]] void run_encoder_test_mode(const TB6612 &driver) {
+  GA12N20 motor(driver, PINS_B, LEFT_MOTOR_ENCODER1_PIN, LEFT_MOTOR_ENCODER2_PIN, motor_ticks_per_rotation);
+  init_encoder_test_mode(motor);
+
+  // CountEncoderTicks configures GPIO0 as the BOOT input with a pull-up.
+  CountEncoderTicks(motor);
+
+  // Keep motor alive while its encoder interrupt handler is registered.
+  while (true) {
+    vTaskDelay(pdMS_TO_TICKS(1000));
+  }
 }
 
-void init_encoder_test_mode() {
+void init_encoder_test_mode(GA12N20 &motor) {
+  auto in_conf = motor.getInConfig();
+  auto out_conf = motor.getOutConfig();
+  ESP_ERROR_CHECK(gpio_config(&in_conf));
+  ESP_ERROR_CHECK(gpio_config(&out_conf));
+
+  motor.startEncoder();
+}
+
+[[noreturn]] void run_run_mode(const TB6612 &driver) {
+  i2c_master_bus_config_t bus_conf{};
+  set_bus_conf(bus_conf);
+
+  i2c_master_bus_handle_t bus{};
+  ESP_ERROR_CHECK(i2c_new_master_bus(&bus_conf, &bus));
+
+  MPU6500 imu{bus};
+
+  VL53L0XV2 front_distance_sensor{bus, FRONT_DIST_XSHUT};
+  VL53L0XV2 right_distance_sensor{bus, RIGHT_DIST_XSHUT};
+  VL53L0XV2 left_distance_sensor{bus, LEFT_DIST_XSHUT};
+
+  GA12N20 right_motor(driver, PINS_A, RIGHT_MOTOR_ENCODER1_PIN, RIGHT_MOTOR_ENCODER2_PIN, motor_ticks_per_rotation);
+  GA12N20 left_motor(driver, PINS_B, LEFT_MOTOR_ENCODER1_PIN, LEFT_MOTOR_ENCODER2_PIN, motor_ticks_per_rotation);
+
+  init_run_mode(imu, front_distance_sensor, right_distance_sensor, left_distance_sensor, right_motor, left_motor);
+
+  // Keep all hardware objects alive while their interrupt handlers are registered.
+  while (true) {
+    vTaskDelay(pdMS_TO_TICKS(1000));
+  }
+}
+
+void init_run_mode(MPU6500 &imu, VL53L0XV2 &front, VL53L0XV2 &right, VL53L0XV2 &left, GA12N20 &right_motor, GA12N20 &left_motor) {
+  ESP_ERROR_CHECK(imu.calibrate_gyro() ? ESP_OK : ESP_ERR_INVALID_RESPONSE);
+
+  auto front_conf = front.getConfig();
+  auto right_conf = right.getConfig();
+  auto left_conf = left.getConfig();
+  ESP_ERROR_CHECK(gpio_config(&front_conf));
+  ESP_ERROR_CHECK(gpio_config(&right_conf));
+  ESP_ERROR_CHECK(gpio_config(&left_conf));
+
+  set_VLX_adress(front, right, left);
+
+  front.init();
+  right.init();
+  left.init();
+
+  auto right_input_conf = right_motor.getInConfig();
+  auto left_input_conf = left_motor.getInConfig();
+  ESP_ERROR_CHECK(gpio_config(&right_input_conf));
+  ESP_ERROR_CHECK(gpio_config(&left_input_conf));
+
+  auto right_output_conf = right_motor.getOutConfig();
+  auto left_output_conf = left_motor.getOutConfig();
+  ESP_ERROR_CHECK(gpio_config(&right_output_conf));
+  ESP_ERROR_CHECK(gpio_config(&left_output_conf));
+
+  auto timer_conf = GA12N20::getLedcTimerConfig();
+  ESP_ERROR_CHECK(ledc_timer_config(&timer_conf));
+
+  auto right_channel_conf = right_motor.getLedcChannelConfig();
+  auto left_channel_conf = left_motor.getLedcChannelConfig();
+  ESP_ERROR_CHECK(ledc_channel_config(&right_channel_conf));
+  ESP_ERROR_CHECK(ledc_channel_config(&left_channel_conf));
+
+  right_motor.startEncoder();
+  left_motor.startEncoder();
 }

@@ -139,7 +139,41 @@ void GA12N20::setVelocity(float velocity) {
   target_velocity = velocity;
 }
 
-void GA12N20::startEncoder() {
+pcnt_unit_handle_t GA12N20::startEncoder() {
+  pcnt_unit_config_t unit_cfg{};
+  unit_cfg.low_limit = -30000;
+  unit_cfg.high_limit = 30000;
+  unit_cfg.flags.accum_count = true;
+  pcnt_unit_handle_t unit = nullptr;
+  ESP_ERROR_CHECK(pcnt_new_unit(&unit_cfg, &unit));
+
+  pcnt_glitch_filter_config_t filter{};
+  filter.max_glitch_ns = 1000;
+  ESP_ERROR_CHECK(pcnt_unit_set_glitch_filter(unit, &filter));
+
+  pcnt_chan_config_t a_cfg{};
+  a_cfg.edge_gpio_num = ENCODER1_PIN;
+  a_cfg.level_gpio_num = ENCODER2_PIN;
+  pcnt_channel_handle_t chan_a = nullptr;
+  ESP_ERROR_CHECK(pcnt_new_channel(unit, &a_cfg, &chan_a));
+  ESP_ERROR_CHECK(pcnt_channel_set_edge_action(chan_a, PCNT_CHANNEL_EDGE_ACTION_DECREASE, PCNT_CHANNEL_EDGE_ACTION_INCREASE));
+  ESP_ERROR_CHECK(pcnt_channel_set_level_action(chan_a, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_INVERSE));
+
+  pcnt_chan_config_t b_cfg{};
+  b_cfg.edge_gpio_num = ENCODER2_PIN;
+  b_cfg.level_gpio_num = ENCODER1_PIN;
+  pcnt_channel_handle_t chan_b = nullptr;
+  ESP_ERROR_CHECK(pcnt_new_channel(unit, &b_cfg, &chan_b));
+  ESP_ERROR_CHECK(pcnt_channel_set_edge_action(chan_b, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_DECREASE));
+  ESP_ERROR_CHECK(pcnt_channel_set_level_action(chan_b, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_INVERSE));
+
+  ESP_ERROR_CHECK(pcnt_unit_add_watch_point(unit, unit_cfg.low_limit));
+  ESP_ERROR_CHECK(pcnt_unit_add_watch_point(unit, unit_cfg.high_limit));
+
+  ESP_ERROR_CHECK(pcnt_unit_enable(unit));
+  ESP_ERROR_CHECK(pcnt_unit_clear_count(unit));
+  ESP_ERROR_CHECK(pcnt_unit_start(unit));
+  return unit;
 }
 
 void GA12N20::encoderISR(void *arg) {
@@ -173,6 +207,7 @@ void GA12N20::resetEncoder() {
   encoder_count = 0;
   portEXIT_CRITICAL(&encoderMux);
 }
+
 ledc_timer_config_t GA12N20::getLedcTimerConfig() {
   return ledc_timer_config_t{
       .speed_mode = LEDC_LOW_SPEED_MODE,

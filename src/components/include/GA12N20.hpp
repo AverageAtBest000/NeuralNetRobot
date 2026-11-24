@@ -3,6 +3,7 @@
 #include "TB6612.hpp"
 #include "driver/gpio.h"
 #include "driver/ledc.h"
+#include "driver/pulse_cnt.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/portmacro.h"
 #include "soc/gpio_num.h"
@@ -126,15 +127,7 @@ public:
    */
   float getVelocity() const;
 
-  /**
-   * @brief Registers the encoder A rising-edge interrupt handler.
-   * @note Apply the encoder GPIO configuration and install the GPIO ISR service with
-   * gpio_install_isr_service() before calling this method.
-   * @note The motor object must remain at the same address and alive while its handler
-   * is registered. The class does not automatically unregister the handler.
-   */
-  void startEncoder();
-
+  pcnt_unit_handle_ startEncoder();
   /**
    * @brief Returns the latest measured encoder tick count
    */
@@ -172,4 +165,6 @@ public:
    * @note Apply with ledc_channel_config() after configuring the shared timer.
    */
   ledc_channel_config_t getLedcChannelConfig() const;
+
+  void setDuty(float duty);
 };

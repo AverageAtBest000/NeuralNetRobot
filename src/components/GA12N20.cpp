@@ -1,6 +1,7 @@
 #include "GA12N20.hpp"
 #include "driver/gpio.h"
 #include "driver/ledc.h"
+#include "driver/pulse_cnt.h"
 #include "esp_err.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -111,6 +112,21 @@ void GA12N20::setPIDGains(float proportional, float integral, float derivative) 
   integral_output = 0.0f;
 }
 
+void GA12N20::setDuty(float requested_duty) {
+  requested_duty = std::clamp(requested_duty, -1.0f, 1.0f);
+
+  const int direction = (requested_duty > 1) ? FORWARD : REVERSE;
+  if (direction != previous_direction) {
+    ESP_ERROR_CHECK(ledc_stop(LEDC_LOW_SPEED_MODE, pwm_channel, 0));
+    setDirection(direction);
+    previous_direction = direction;
+  }
+
+  const uint32_t duty = static_cast<uint32_t>(std::lround(std::fabs(requested_duty) * MAX_DUTY));
+  ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, pwm_channel, duty));
+  ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, pwm_channel));
+}
+
 float GA12N20::getVelocity() const {
   return velocity;
 }
@@ -124,8 +140,6 @@ void GA12N20::setVelocity(float velocity) {
 }
 
 void GA12N20::startEncoder() {
-  ESP_ERROR_CHECK(gpio_set_intr_type(ENCODER1_PIN, GPIO_INTR_POSEDGE));
-  ESP_ERROR_CHECK(gpio_isr_handler_add(ENCODER1_PIN, encoderISR, this));
 }
 
 void GA12N20::encoderISR(void *arg) {

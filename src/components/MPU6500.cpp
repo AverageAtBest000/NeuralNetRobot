@@ -13,7 +13,7 @@ MPU6500::MPU6500(i2c_master_bus_handle_t &bus) {
   i2c_device_config_t imu_config{};
   imu_config.dev_addr_length = I2C_ADDR_BIT_LEN_7;
   imu_config.device_address = ADDRS;
-  imu_config.scl_speed_hz = 100000;
+  imu_config.scl_speed_hz = 400000;
 
   ESP_ERROR_CHECK(i2c_master_bus_add_device(bus, &imu_config, &imu));
 
@@ -22,7 +22,7 @@ MPU6500::MPU6500(i2c_master_bus_handle_t &bus) {
   vTaskDelay(pdMS_TO_TICKS(100));
   write_register(0x6B, 0x01); // Wake nusing the gyro clock
   write_register(0x6C, 0x00); // Enable all axes
-  write_register(0x19, 0x09); // 100 Hz sample rate with the filters enabled
+  write_register(0x19, 0x01); // 100 Hz sample rate with the filters enabled
   write_register(0x1A, 0x03); // Gyro low-pass filter
   write_register(0x1B, 0x00); // +/-250 degrees/s, 131 counts per degree/s
   write_register(0x1C, 0x00); // +/-2 g, 16384 counts per g

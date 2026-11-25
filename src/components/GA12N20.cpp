@@ -3,21 +3,17 @@
 #include "driver/ledc.h"
 #include "driver/pulse_cnt.h"
 #include "esp_err.h"
-#include "esp_timer.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/portmacro.h"
 #include "hal/gpio_types.h"
 #include "hal/ledc_types.h"
 #include "soc/gpio_num.h"
 #include <algorithm>
 #include <cmath>
-#include <cstddef>
 #include <cstdint>
 
-GA12N20::GA12N20(TB6612 driver, const int partition, const gpio_num_t ENCODER1_PIN, const gpio_num_t ENCODER2_PIN, float ticks_per_rotation)
+GA12N20::GA12N20(TB6612 driver, const int partition, const gpio_num_t ENCODER1_PIN, const gpio_num_t ENCODER2_PIN)
     : STBY(driver.STBY), IN1_PIN((partition == PINS_A) ? driver.AIN1 : driver.BIN1), IN2_PIN((partition == PINS_A) ? driver.AIN2 : driver.BIN2),
       PWM_PIN((partition == PINS_A) ? driver.PWMA : driver.PWMB), ENCODER1_PIN(ENCODER1_PIN), ENCODER2_PIN(ENCODER2_PIN),
-      pwm_channel((partition == PINS_A) ? LEDC_CHANNEL_0 : LEDC_CHANNEL_1), ticks_per_rotation(ticks_per_rotation) {
+      pwm_channel((partition == PINS_A) ? LEDC_CHANNEL_0 : LEDC_CHANNEL_1) {
 
   input_conf = {
       .pin_bit_mask = (1ULL << ENCODER1_PIN) | (1ULL << ENCODER2_PIN),
@@ -44,78 +40,15 @@ GA12N20::GA12N20(TB6612 driver, const int partition, const gpio_num_t ENCODER1_P
   };
 }
 
-void GA12N20::run() {
-  portENTER_CRITICAL(&encoderMux);
-  int64_t current_count = encoder_count;
-  portEXIT_CRITICAL(&encoderMux);
-
-  int64_t current_time_us = esp_timer_get_time();
-
-  if (!has_previous_sample) {
-    previous_count = current_count;
-    previous_time_us = current_time_us;
-    has_previous_sample = true;
-    ESP_ERROR_CHECK(gpio_set_level(IN1_PIN, 0));
-    ESP_ERROR_CHECK(gpio_set_level(IN2_PIN, 0));
-    return;
-  }
-
-  float dt = (current_time_us - previous_time_us) / 1000000.0f;
-
-  if (dt <= 0)
-    return;
-
-  const float previous_velocity = velocity;
-  velocity = (current_count - previous_count) * (TWO_PI / ticks_per_rotation) / dt;
-
-  float velocity_error = target_velocity - velocity;
-
-  const float derivative = -(velocity - previous_velocity) / dt;
-  const float candidate_integral = std::clamp(integral_output + ki * velocity_error * dt, -1.0f, 1.0f);
-  const float candidate_output = kp * velocity_error + candidate_integral + kd * derivative;
-
-  // Only integrate while unsaturated, or when the error unwinds saturation.
-  if ((candidate_output >= -1.0f && candidate_output <= 1.0f) || (candidate_output > 1.0f && velocity_error < 0.0f) || (candidate_output < -1.0f && velocity_error > 0.0f)) {
-    integral_output = candidate_integral;
-  }
-  float output = std::clamp(kp * velocity_error + integral_output + kd * derivative, -1.0f, 1.0f);
-  if (target_velocity == 0.0f) {
-    integral_output = 0.0f;
-    output = 0.0f;
-  }
-
-  const int direction = (output >= 0.0f) ? FORWARD : REVERSE;
-
-  if (direction != previous_direction) {
-    ESP_ERROR_CHECK(ledc_stop(LEDC_LOW_SPEED_MODE, pwm_channel, 0));
-    setDirection(direction);
-
-    previous_direction = direction;
-  }
-  const uint32_t duty = static_cast<uint32_t>(std::lround(std::fabs(output) * MAX_DUTY));
-  ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, pwm_channel, duty));
-  ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, pwm_channel));
-
-  previous_count = current_count;
-  previous_time_us = current_time_us;
-}
-
 void GA12N20::setDirection(int direction) {
   ESP_ERROR_CHECK(gpio_set_level(IN1_PIN, direction == FORWARD));
   ESP_ERROR_CHECK(gpio_set_level(IN2_PIN, direction == REVERSE));
 }
 
-void GA12N20::setPIDGains(float proportional, float integral, float derivative) {
-  kp = proportional;
-  ki = integral;
-  kd = derivative;
-  integral_output = 0.0f;
-}
-
 void GA12N20::setDuty(float requested_duty) {
   requested_duty = std::clamp(requested_duty, -1.0f, 1.0f);
 
-  const int direction = (requested_duty > 1) ? FORWARD : REVERSE;
+  const int direction = (requested_duty > 0.0f) ? FORWARD : REVERSE;
   if (direction != previous_direction) {
     ESP_ERROR_CHECK(ledc_stop(LEDC_LOW_SPEED_MODE, pwm_channel, 0));
     setDirection(direction);
@@ -127,19 +60,7 @@ void GA12N20::setDuty(float requested_duty) {
   ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, pwm_channel));
 }
 
-float GA12N20::getVelocity() const {
-  return velocity;
-}
-
-void GA12N20::setVelocity(float velocity) {
-
-  if (velocity == 0.0f || (velocity > 0.0f) != (target_velocity > 0.0f)) {
-    integral_output = 0.0f;
-  }
-  target_velocity = velocity;
-}
-
-pcnt_unit_handle_t GA12N20::startEncoder() {
+void GA12N20::startEncoder() {
   pcnt_unit_config_t unit_cfg{};
   unit_cfg.low_limit = -30000;
   unit_cfg.high_limit = 30000;
@@ -173,18 +94,7 @@ pcnt_unit_handle_t GA12N20::startEncoder() {
   ESP_ERROR_CHECK(pcnt_unit_enable(unit));
   ESP_ERROR_CHECK(pcnt_unit_clear_count(unit));
   ESP_ERROR_CHECK(pcnt_unit_start(unit));
-  return unit;
-}
-
-void GA12N20::encoderISR(void *arg) {
-  GA12N20 *motor = static_cast<GA12N20 *>(arg);
-  motor->updateTicks();
-}
-
-void GA12N20::updateTicks() {
-  portENTER_CRITICAL_ISR(&encoderMux);
-  encoder_count += (gpio_get_level(ENCODER2_PIN) == 0) ? 1 : -1;
-  portEXIT_CRITICAL_ISR(&encoderMux);
+  encoder_unit = unit;
 }
 
 gpio_config_t GA12N20::getInConfig() const {
@@ -196,16 +106,13 @@ gpio_config_t GA12N20::getOutConfig() const {
 }
 
 int64_t GA12N20::getEncoderTicks() {
-  portENTER_CRITICAL(&encoderMux);
-  int64_t current_count = encoder_count;
-  portEXIT_CRITICAL(&encoderMux);
-  return current_count;
+  int count;
+  ESP_ERROR_CHECK(pcnt_unit_get_count(encoder_unit, &count));
+  return count;
 }
 
 void GA12N20::resetEncoder() {
-  portENTER_CRITICAL(&encoderMux);
-  encoder_count = 0;
-  portEXIT_CRITICAL(&encoderMux);
+  ESP_ERROR_CHECK(pcnt_unit_clear_count(encoder_unit));
 }
 
 ledc_timer_config_t GA12N20::getLedcTimerConfig() {

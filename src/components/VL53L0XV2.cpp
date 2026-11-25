@@ -12,7 +12,7 @@ VL53L0XV2::VL53L0XV2(i2c_master_bus_handle_t &bus, const gpio_num_t XSHUT_PIN) :
   i2c_device_config_t dist_config{};
   dist_config.dev_addr_length = I2C_ADDR_BIT_LEN_7;
   dist_config.device_address = ADDRS;
-  dist_config.scl_speed_hz = 100000;
+  dist_config.scl_speed_hz = 400000;
 
   ESP_ERROR_CHECK(i2c_master_bus_add_device(bus, &dist_config, &distance_sensor));
 

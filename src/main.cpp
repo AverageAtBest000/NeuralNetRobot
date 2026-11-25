@@ -6,6 +6,7 @@
 #include "driver/i2c_master.h"
 #include "driver/i2c_types.h"
 #include "esp_err.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "hal/i2c_types.h"
@@ -47,7 +48,6 @@ constexpr gpio_num_t LEFT_MOTOR_ENCODER1_PIN = GPIO_NUM_26;
 constexpr gpio_num_t LEFT_MOTOR_ENCODER2_PIN = GPIO_NUM_27;
 
 constexpr gpio_num_t STBY = GPIO_NUM_23;
-constexpr float motor_ticks_per_rotation = 0.0f;
 
 constexpr gpio_num_t FRONT_DIST_XSHUT = GPIO_NUM_2;
 constexpr gpio_num_t RIGHT_DIST_XSHUT = GPIO_NUM_0;
@@ -58,7 +58,6 @@ extern "C" void app_main(void) {
   // Disable the motor driver before initializing any other hardware.
   ESP_ERROR_CHECK(gpio_set_level(STBY, 0));
   ESP_ERROR_CHECK(gpio_set_direction(STBY, GPIO_MODE_OUTPUT));
-  ESP_ERROR_CHECK(gpio_install_isr_service(0));
 
   constexpr TB6612 driver{AIN1, AIN2, PWMA, BIN1, BIN2, PWMB, STBY};
 
@@ -99,7 +98,7 @@ void set_bus_conf(i2c_master_bus_config_t &bus_conf) {
 }
 
 [[noreturn]] void run_encoder_test_mode(const TB6612 &driver) {
-  GA12N20 motor(driver, PINS_B, LEFT_MOTOR_ENCODER1_PIN, LEFT_MOTOR_ENCODER2_PIN, motor_ticks_per_rotation);
+  GA12N20 motor(driver, PINS_B, LEFT_MOTOR_ENCODER1_PIN, LEFT_MOTOR_ENCODER2_PIN);
   init_encoder_test_mode(motor);
 
   // CountEncoderTicks configures GPIO0 as the BOOT input with a pull-up.
@@ -133,14 +132,25 @@ void init_encoder_test_mode(GA12N20 &motor) {
   VL53L0XV2 right_distance_sensor{bus, RIGHT_DIST_XSHUT};
   VL53L0XV2 left_distance_sensor{bus, LEFT_DIST_XSHUT};
 
-  GA12N20 right_motor(driver, PINS_A, RIGHT_MOTOR_ENCODER1_PIN, RIGHT_MOTOR_ENCODER2_PIN, motor_ticks_per_rotation);
-  GA12N20 left_motor(driver, PINS_B, LEFT_MOTOR_ENCODER1_PIN, LEFT_MOTOR_ENCODER2_PIN, motor_ticks_per_rotation);
+  GA12N20 right_motor(driver, PINS_A, RIGHT_MOTOR_ENCODER1_PIN, RIGHT_MOTOR_ENCODER2_PIN);
+  GA12N20 left_motor(driver, PINS_B, LEFT_MOTOR_ENCODER1_PIN, LEFT_MOTOR_ENCODER2_PIN);
 
   init_run_mode(imu, front_distance_sensor, right_distance_sensor, left_distance_sensor, right_motor, left_motor);
 
+  float last_theta = 0.0f;
+  float theta = 0.0f;
+  int64_t last_time = 0;
+  int64_t time = 0;
+  bool has_previous_sample = false;
   // Keep all hardware objects alive while their interrupt handlers are registered.
   while (true) {
-    vTaskDelay(pdMS_TO_TICKS(1000));
+
+    if (!has_previous_sample) {
+      theta = imu.get_gx_rad_s();
+      time = esp_timer_get_time();
+    }
+
+    last_theta = theta;
   }
 }
 

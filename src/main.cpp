@@ -8,12 +8,15 @@
 #include "esp_err.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/projdefs.h"
 #include "freertos/task.h"
 #include "hal/i2c_types.h"
 #include "hal/ledc_types.h"
+#include "portmacro.h"
 #include "soc/clk_tree_defs.h"
 #include "soc/gpio_num.h"
 #include "tests/include/EncoderTickCounter.hpp"
+#include <cstddef>
 #include <cstdint>
 #include <sys/reent.h>
 
@@ -119,6 +122,10 @@ void init_encoder_test_mode(GA12N20 &motor) {
   motor.startEncoder();
 }
 
+static void callback(void *arg) {
+  xTaskNotifyGive((TaskHandle_t)arg);
+}
+
 [[noreturn]] void run_run_mode(const TB6612 &driver) {
   i2c_master_bus_config_t bus_conf{};
   set_bus_conf(bus_conf);
@@ -137,19 +144,54 @@ void init_encoder_test_mode(GA12N20 &motor) {
 
   init_run_mode(imu, front_distance_sensor, right_distance_sensor, left_distance_sensor, right_motor, left_motor);
 
-  float last_theta = 0.0f;
-  float theta = 0.0f;
-  int64_t last_time = 0;
-  int64_t time = 0;
-  bool has_previous_sample = false;
-  // Keep all hardware objects alive while their interrupt handlers are registered.
+  // Timer config -> call callback() when time is up
+  const esp_timer_create_args_t timer_conf = {
+      .callback = &callback,
+      .arg = (void *)xTaskGetCurrentTaskHandle(),
+      .dispatch_method = ESP_TIMER_TASK,
+      .name = "balancing_loop",
+      .skip_unhandled_events = false};
+
+  // Run callback every 2ms (2000 um) to wake control loop
+  long wake_interval = 2000;
+  esp_timer_handle_t timer_handle;
+  ESP_ERROR_CHECK(esp_timer_create(&timer_conf, &timer_handle));
+  ESP_ERROR_CHECK(esp_timer_start_periodic(timer_handle, wake_interval));
+
+  // Complementary filter vars
+  float last_time_s;
+  float last_theta;
+  float alpha = 0.995f;
+
+  // PD vars
+  float kP = 0.1f;
+  float kD = 0.001f;
+  float target_theta = 0.0f;
+
+  // Cotnrol loop
   while (true) {
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
-    if (!has_previous_sample) {
-      theta = imu.get_gx_rad_s();
-      time = esp_timer_get_time();
-    }
+    if (!imu.update())
+      continue;
+    // Convert us to seconds
+    float time_now_s = esp_timer_get_time() / 1000000000.0f;
+    float dt = time_now_s - last_time_s;
+    float rotation_rate = imu.get_gx_rad_s();
+    float tilt_angle = imu.get_ax_m_s2();
 
+    float theta = alpha * (last_theta + rotation_rate * dt) + (1 - alpha) * tilt_angle;
+
+    float error = target_theta - theta;
+
+    // Gyro already integrates over the error. Do not be derrived again.
+    float pwm = kP * error + kD * rotation_rate;
+
+    // Motors should spin in opposing directions relative to their axis.
+    right_motor.setDuty(pwm);
+    left_motor.setDuty(-pwm);
+
+    last_time_s = time_now_s;
     last_theta = theta;
   }
 }

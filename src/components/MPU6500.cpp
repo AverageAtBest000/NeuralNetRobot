@@ -20,14 +20,14 @@ MPU6500::MPU6500(i2c_master_bus_handle_t &bus) {
   write_register(0x6B, 0x80); // Reset before applying configuration.
 
   vTaskDelay(pdMS_TO_TICKS(100));
-  write_register(0x6B, 0x01); // Wake nusing the gyro clock
-  write_register(0x6C, 0x00); // Enable all axes
-  write_register(0x19, 0x01); // 100 Hz sample rate with the filters enabled
-  write_register(0x1A, 0x03); // Gyro low-pass filter
-  write_register(0x1B, 0x00); // +/-250 degrees/s, 131 counts per degree/s
-  write_register(0x1C, 0x00); // +/-2 g, 16384 counts per g
-  write_register(0x1D, 0x03); // Accelerometer low-pass filter
-  write_register(0x38, 0x01); // Enable data-ready status
+  write_register(0x6B, 0x01);
+  write_register(0x6C, 0x00);
+  write_register(0x19, 0x01);
+  write_register(0x1A, 0x02);
+  write_register(0x1B, 0x08);
+  write_register(0x1C, 0x00);
+  write_register(0x1D, 0x03);
+  write_register(0x38, 0x01);
   vTaskDelay(pdMS_TO_TICKS(100));
 }
 
@@ -38,7 +38,7 @@ void MPU6500::write_register(std::uint8_t addr, std::uint8_t value) {
 
 bool MPU6500::update() {
   const std::uint8_t reg = 0x3A;
-  std::uint8_t sample[15]{}; // Data-ready status followed by all six axes and temperature.
+  std::uint8_t sample[15]{};
   if (i2c_master_transmit_receive(imu, &reg, 1, sample, sizeof(sample), I2C_TIMEOUT_MS) != ESP_OK) {
     valid = false;
     return false;

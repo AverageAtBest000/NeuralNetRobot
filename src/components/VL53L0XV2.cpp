@@ -248,7 +248,7 @@ void VL53L0XV2::set_addr(std::uint8_t NEW_ADDR) {
   i2c_device_config_t dist_config{};
   dist_config.dev_addr_length = I2C_ADDR_BIT_LEN_7;
   dist_config.device_address = NEW_ADDR;
-  dist_config.scl_speed_hz = 100000;
+  dist_config.scl_speed_hz = 400000;
 
   // remove old handle to prevent leak
   ESP_ERROR_CHECK(i2c_master_bus_rm_device(distance_sensor));

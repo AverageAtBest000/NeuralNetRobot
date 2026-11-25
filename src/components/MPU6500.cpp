@@ -110,6 +110,6 @@ std::int16_t MPU6500::get_gz() { return g_z; }
 float MPU6500::get_ax_m_s2() const { return a_x * (9.80665f / 16384.0f); }
 float MPU6500::get_ay_m_s2() const { return a_y * (9.80665f / 16384.0f); }
 float MPU6500::get_az_m_s2() const { return a_z * (9.80665f / 16384.0f); }
-float MPU6500::get_gx_rad_s() const { return (g_x - gx_bias) * (0.01745329252f / 131.0f); }
-float MPU6500::get_gy_rad_s() const { return (g_y - gy_bias) * (0.01745329252f / 131.0f); }
-float MPU6500::get_gz_rad_s() const { return (g_z - gz_bias) * (0.01745329252f / 131.0f); }
+float MPU6500::get_gx_rad_s() const { return (g_x - gx_bias) * (0.01745329252f / 65.5f); }
+float MPU6500::get_gy_rad_s() const { return (g_y - gy_bias) * (0.01745329252f / 65.5f); }
+float MPU6500::get_gz_rad_s() const { return (g_z - gz_bias) * (0.01745329252f / 65.5f); }
